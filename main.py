@@ -31,6 +31,16 @@ def read_root():
     return {"message": "Welcome to the Book API!"}
 
 
+
+
+
+@app.post("/add-book")
+async def add_book(book: Book):
+    book_dict = jsonable_encoder(book)
+    result = await books_collection.insert_one(book_dict)
+    return {"id": str(result.inserted_id)}
+
+
 @app.get("/books/{mongodbId}")
 async def read_book(mongodbId: str):
     try:
