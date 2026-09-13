@@ -6,12 +6,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from pymongo import AsyncMongoClient
-from langchain import text_splitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 app = FastAPI()
 
 load_dotenv()
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 db_url = os.getenv("DB_URL")
+
+
 
 from google import genai
 from sentence_transformers import SentenceTransformer
@@ -40,6 +42,11 @@ def read_root():
 
 @app.post("/add-book")
 async def add_book(book: Book):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200
+    )
+    
     book_dict = jsonable_encoder(book)
     result = await books_collection.insert_one(book_dict)
     
