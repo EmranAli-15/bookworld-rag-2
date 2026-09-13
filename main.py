@@ -6,11 +6,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from pymongo import AsyncMongoClient
+from langchain import text_splitter
 app = FastAPI()
 
 load_dotenv()
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 db_url = os.getenv("DB_URL")
+
+from google import genai
+from sentence_transformers import SentenceTransformer
 
 mongo_client = AsyncMongoClient(db_url)
 database = mongo_client.get_default_database()
@@ -38,6 +42,31 @@ def read_root():
 async def add_book(book: Book):
     book_dict = jsonable_encoder(book)
     result = await books_collection.insert_one(book_dict)
+    
+    book_id = str(result.inserted_id)
+    
+    full_text = f"{book.name} {book.summary} {book.writer} {book.category}"
+    chunks = text_splitter.split_text(full_text)
+    
+    vector_docs = []
+    
+    for chunk in chunks:
+        embedding = SentenceTransformer('all-MiniLM-L6-v2').encode(chunk).tolist()
+        vector_docs.append({
+            "book_id": book_id,
+            "chunk_text": chunk,
+            "vector": embedding,
+            "metadata": {
+                "name": book.name,
+                "price": book.price,
+                "quantity": book.quantity,
+                "category": book.category,
+                "writer": book.writer
+            }
+        })
+    
+    await database["book_vectors"].insert_many(vector_docs)
+    
     return {"id": str(result.inserted_id)}
 
 
